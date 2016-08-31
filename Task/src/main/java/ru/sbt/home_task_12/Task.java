@@ -1,13 +1,16 @@
 package ru.sbt.home_task_12;
 
-import java.util.concurrent.Callable;
+import java.util.List;
+import java.util.concurrent.*;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.concurrent.Semaphore;
 
 public class Task<T> {
+
     private final Callable<? extends T> callable;
+    private static final ExecutorService es = Executors.newCachedThreadPool();
     private static Semaphore sem = new Semaphore(1, true);
+//    private final FutureTask<T> futureTask;
     private Exception exception;
     private final Map<Object, T> cacheMap;
     private static final Object LOCK = new Object();
@@ -15,10 +18,25 @@ public class Task<T> {
 
 
     public Task(Callable<? extends T> callable) {
+        es.submit(callable);
         this.callable = callable;
         this.cacheMap = new HashMap<>();
         this.isException = false;
         this.exception = null;
+    }
+
+    public static void shutdown() {
+        es.shutdown();
+    }
+
+    public void run() {
+        if (callable != null) {
+            try {
+                callable.call();
+            } catch (Exception e) {
+                throw new TaskInCallException("Error in run method", e);
+            }
+        }
     }
 
     public T get() throws TaskInCallException {
